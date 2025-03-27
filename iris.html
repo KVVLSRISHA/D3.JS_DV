@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Iris Dataset – Pie Chart</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      .legend {
+        font-size: 12px;
+      }
+      .arc text {
+        font: 10px sans-serif;
+        text-anchor: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Iris Dataset – Species Distribution Pie Chart</h2>
+    <svg width="600" height="500"></svg>
+    <script>
+      const svg = d3.select("svg"),
+            width = +svg.attr("width"),
+            height = +svg.attr("height"),
+            radius = Math.min(width, height) / 2 - 50;
+      
+      // Group for pie chart centered in the SVG
+      const g = svg.append("g")
+                   .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+      
+      // Load Iris CSV dataset 
+      d3.csv("iris.csv").then(data => {
+        
+        // Count the occurrences of each species using d3.rollup
+        const speciesCounts = d3.rollup(data, v => v.length, d => d.species);
+        const pieData = Array.from(speciesCounts, ([key, value]) => ({ species: key, count: value }));
+        
+        // Define a color scale
+        const color = d3.scaleOrdinal()
+                        .domain(pieData.map(d => d.species))
+                        .range(d3.schemeCategory10);
+        
+        // Create the pie layout
+        const pie = d3.pie().value(d => d.count);
+        
+        // Define arc generator
+        const arc = d3.arc()
+                      .innerRadius(0)
+                      .outerRadius(radius);
+        
+        // Draw arcs
+        const arcs = g.selectAll(".arc")
+                      .data(pie(pieData))
+                      .enter().append("g")
+                      .attr("class", "arc");
+        
+        arcs.append("path")
+            .attr("d", arc)
+            .attr("fill", d => color(d.data.species));
+        
+        // Append labels to each arc slice
+        arcs.append("text")
+            .attr("transform", d => "translate(" + arc.centroid(d) + ")")
+            .attr("dy", "0.35em")
+            .text(d => d.data.species);
+        
+        // Create a legend
+        const legend = svg.append("g")
+                          .attr("class", "legend")
+                          .attr("transform", "translate(20,20)");
+        
+        pieData.forEach((d, i) => {
+          const legendRow = legend.append("g")
+                                  .attr("transform", "translate(0," + i * 20 + ")");
+          legendRow.append("rect")
+                   .attr("width", 12)
+                   .attr("height", 12)
+                   .attr("fill", color(d.species));
+          legendRow.append("text")
+                   .attr("x", 20)
+                   .attr("y", 10)
+                   .text(d.species);
+        });
+        
+        // Add X and Y axis labels
+        svg.append("text")
+           .attr("x", width / 2)
+           .attr("y", height - 10)
+           .attr("text-anchor", "middle")
+           .text("Species Distribution");
+        
+        svg.append("text")
+           .attr("x", 10)
+           .attr("y", height / 2)
+           .attr("transform", "rotate(-90,10," + height / 2 + ")")
+           .attr("text-anchor", "middle")
+           .text("Count (Y-Axis");
+      });
+    </script>
+  </body>
+</html>

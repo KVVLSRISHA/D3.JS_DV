@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titanic Age Distribution Area Chart</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .axis-label { font-size: 14px; font-weight: bold; }
+        .area-survived { fill: steelblue; opacity: 0.6; }
+        .area-not-survived { fill: tomato; opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <svg width="800" height="500"></svg>
+    <script>
+        const margin = { top: 20, right: 30, bottom: 50, left: 50 },
+              width = 800 - margin.left - margin.right,
+              height = 500 - margin.top - margin.bottom;
+
+        const svg = d3.select("svg")
+                      .append("g")
+                      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        d3.csv("Titanic-Dataset.csv").then(data => {
+            data.forEach(d => d.Age = +d.Age);  // Convert Age to number
+            
+            // Group data by Age buckets and Survival status
+            const ageGroups = d3.rollups(
+                data.filter(d => !isNaN(d.Age)), // Ignore NaN values
+                v => ({
+                    survived: v.filter(d => d.Survived === "1").length,
+                    notSurvived: v.filter(d => d.Survived === "0").length
+                }),
+                d => Math.floor(d.Age / 5) * 5 // Group ages in intervals of 5
+            );
+
+            // Convert the rollup result into an array of objects
+            const processedData = ageGroups.map(([age, values]) => ({
+                age: age,
+                survived: values.survived || 0,
+                notSurvived: values.notSurvived || 0
+            })).sort((a, b) => a.age - b.age);
+            
+            // Define scales
+            const x = d3.scaleLinear()
+                        .domain([0, d3.max(processedData, d => d.age) + 5])
+                        .range([0, width]);
+
+            const y = d3.scaleLinear()
+                        .domain([0, d3.max(processedData, d => d.survived + d.notSurvived)])
+                        .range([height, 0]);
+            
+            // Define area generators
+            const areaSurvived = d3.area()
+                                  .x(d => x(d.age))
+                                  .y0(height)
+                                  .y1(d => y(d.survived));
+
+            const areaNotSurvived = d3.area()
+                                      .x(d => x(d.age))
+                                      .y0(height)
+                                      .y1(d => y(d.notSurvived));
+            
+            // Append survived area
+            svg.append("path")
+               .datum(processedData)
+               .attr("class", "area-survived")
+               .attr("d", areaSurvived);
+            
+            // Append not survived area
+            svg.append("path")
+               .datum(processedData)
+               .attr("class", "area-not-survived")
+               .attr("d", areaNotSurvived);
+            
+            // Add axes
+            svg.append("g")
+               .attr("transform", `translate(0,${height})`)
+               .call(d3.axisBottom(x));
+
+            svg.append("g")
+               .call(d3.axisLeft(y));
+            
+            // X-axis label
+            svg.append("text")
+               .attr("class", "axis-label")
+               .attr("x", width / 2)
+               .attr("y", height + 40)
+               .style("text-anchor", "middle")
+               .text("Age Groups");
+
+            // Y-axis label
+            svg.append("text")
+               .attr("class", "axis-label")
+               .attr("transform", "rotate(-90)")
+               .attr("x", -height / 2)
+               .attr("y", -40)
+               .style("text-anchor", "middle")
+               .text("Number of Passengers");
+        });
+    </script>
+</body>
+</html>
